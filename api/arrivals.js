@@ -1,4 +1,4 @@
-const axios = require('axios');
+import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
     const { stopCode } = req.query;
@@ -8,19 +8,11 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await axios.get('https://bustime.mta.info/api/siri/stop-monitoring.json', {
-            params: {
-                key: process.env.MTA_API_KEY,
-                MonitoringRef: stopCode,
-            },
-        });
+        const response = await fetch(`https://bustime.mta.info/api/siri/stop-monitoring.json?key=${process.env.MTA_API_KEY}&MonitoringRef=${stopCode}`);
+        const data = await response.json();
 
-        const data = response.data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
-        if (!data || data.length === 0) {
-            return res.json({ message: 'No buses arriving soon.' });
-        }
-
-        const arrivals = data.map((bus) => ({
+        const buses = data.Siri.ServiceDelivery.StopMonitoringDelivery[0]?.MonitoredStopVisit || [];
+        const arrivals = buses.map((bus) => ({
             route: bus.MonitoredVehicleJourney.LineRef,
             destination: bus.MonitoredVehicleJourney.DestinationName,
             expectedArrival: bus.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime,
