@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-const API_SECRET_KEY = process.env.MY_SECRET_KEY || 'MY_SECRET_KEY';
+const MY_SECRET_KEY = process.env.MY_SECRET_KEY || 'MY_SECRET_KEY';
 
 export default async function handler(req, res) {
 
