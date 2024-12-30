@@ -1,6 +1,15 @@
 import fetch from 'node-fetch';
+const API_SECRET_KEY = process.env.API_SECRET_KEY || 'MY_SECRET_KEY';
 
 export default async function handler(req, res) {
+
+    const { authorization } = req.headers;
+
+    // Check if the API key matches
+    if (!authorization || authorization !== `Bearer ${API_SECRET_KEY}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
   const { stopCode } = req.query;
 
   if (!stopCode) {
