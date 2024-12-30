@@ -1,32 +1,56 @@
+import fetch from 'node-fetch';
+
 export default async function handler(req, res) {
-    const { stopCode } = req.query;
+  const { stopCode } = req.query;
 
-    if (!stopCode) {
-        return res.status(400).json({ error: 'Missing stopCode parameter.' });
+  if (!stopCode) {
+    return res.status(400).json({ error: 'Missing stopCode parameter' });
+  }
+
+  const API_KEY = process.env.MTA_API_KEY;
+  const URL = `https://bustime.mta.info/api/siri/stop-monitoring.json?key=${API_KEY}&MonitoringRef=${stopCode}`;
+
+  try {
+    const response = await fetch(URL);
+    const data = await response.json();
+
+    // Check for bus times
+    const stopMonitoringDelivery = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0];
+    const monitoredVehicles = stopMonitoringDelivery?.MonitoredStopVisit || [];
+
+    if (monitoredVehicles.length > 0) {
+      const busTimes = monitoredVehicles.map((visit) => {
+        const monitoredVehicleJourney = visit.MonitoredVehicleJourney;
+        return {
+          route: monitoredVehicleJourney.LineRef,
+          destination: monitoredVehicleJourney.DestinationName,
+          expectedArrival: monitoredVehicleJourney.MonitoredCall?.ExpectedArrivalTime,
+        };
+      });
+
+      return res.status(200).json({ busTimes });
     }
 
-    try {
-        const response = await fetch(`https://bustime.mta.info/api/siri/stop-monitoring.json?key=${process.env.MTA_API_KEY}&MonitoringRef=${stopCode}`);
-        const data = await response.json();
+    // Check for situation messages
+    const situationExchangeDelivery = data?.Siri?.ServiceDelivery?.SituationExchangeDelivery?.[0];
+    const situations = situationExchangeDelivery?.Situations?.PtSituationElement || [];
 
-        console.log('API Response:', JSON.stringify(data, null, 2)); // Log the entire response for debugging
+    if (situations.length > 0) {
+      const messages = situations.map((situation) => ({
+        summary: situation.Summary,
+        description: situation.Description,
+        affects: situation.Affects?.VehicleJourneys?.AffectedVehicleJourney || [],
+        creationTime: situation.CreationTime,
+      }));
 
-        // const buses = data.Siri.ServiceDelivery.StopMonitoringDelivery[0]?.MonitoredStopVisit || [];
-        
-        const buses = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-            if (buses.length === 0) {
-    return res.status(404).json({ message: 'No buses found for this stop.' });
-        }
-
-        const arrivals = buses.map((bus) => ({
-            route: bus.MonitoredVehicleJourney.LineRef,
-            destination: bus.MonitoredVehicleJourney.DestinationName,
-            expectedArrival: bus.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime,
-        }));
-
-        res.json(arrivals);
-    } catch (error) {
-        console.error('Error fetching bus data:', error.message);
-        res.status(500).json({ error: 'Failed to fetch bus data.' });
+      return res.status(200).json({ messages });
     }
+
+    // Default response if no bus times or messages
+    return res.status(200).json({ message: 'No bus times or situations available at this stop.' });
+
+  } catch (error) {
+    console.error('Error fetching bus data:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
