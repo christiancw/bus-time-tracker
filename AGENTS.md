@@ -2,7 +2,9 @@
 
 ## Cursor Cloud specific instructions
 
-This repo is a single MTA bus-arrival Vercel serverless function at `api/arrivals.js` (Vercel `(req, res)` contract). There is no README and no framework beyond `node-fetch`.
+This repo is an MTA bus-arrival Vercel serverless project (Vercel `(req, res)` contract). There is no README and no framework beyond `node-fetch`. Endpoints:
+- `api/arrivals.js` — raw arrivals; requires `Authorization: Bearer <MY_SECRET_KEY>` header; returns `busTimes` with raw ISO `expectedArrival`.
+- `api/next-bus.js` — Apple Shortcut-friendly wrapper: accepts the token via `?token=<MY_SECRET_KEY>` query param (or the `Authorization` header), computes `minutes` until arrival, supports `route`, `limit`, and `format=text` (returns `text/plain` for Siri/notifications), and surfaces MTA upstream errors as HTTP 502.
 
 - Run locally: `npm run dev` starts a lightweight local server (`scripts/dev-server.js`) that reproduces Vercel's `req`/`res` contract and serves `api/<name>.js` at `/api/<name>` on port 3000 (override with `PORT`). Use this instead of `vercel dev`, which requires interactive Vercel login and is not usable in this environment.
 - No tests or lint are configured (`npm test` is a placeholder that exits non-zero). Do not treat `npm test` as a real test suite.
